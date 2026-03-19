@@ -260,6 +260,16 @@ Please open an issue first for major changes so we can discuss the approach.
   <strong>Stop reading code blind. Start understanding everything.</strong>
 </p>
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=Lum1104%2FUnderstand-Anything&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=Lum1104/Understand-Anything&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=Lum1104/Understand-Anything&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=Lum1104/Understand-Anything&type=date&legend=top-left" />
+ </picture>
+</a>
+
 <p align="center">
   MIT License &copy; <a href="https://github.com/Lum1104">Lum1104</a>
 </p>
