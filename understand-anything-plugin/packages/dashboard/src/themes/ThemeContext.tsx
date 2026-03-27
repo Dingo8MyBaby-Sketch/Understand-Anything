@@ -75,7 +75,7 @@ export function ThemeProvider({ metaTheme, children }: ThemeProviderProps) {
   }, [metaTheme]);
 
   const setPreset = useCallback((presetId: PresetId) => {
-    setConfig((prev) => {
+    setConfig((_prev) => {
       const newPreset = getPreset(presetId);
       return { presetId, accentId: newPreset.defaultAccentId };
     });
