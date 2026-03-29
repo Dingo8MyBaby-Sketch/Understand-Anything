@@ -20,15 +20,16 @@ export default function NodeTooltip({
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
+    const handleMouseMove = (e: Event) => {
+      const me = e as globalThis.MouseEvent;
+      setPosition({ x: me.clientX, y: me.clientY });
     };
 
     const showTooltip = () => setVisible(true);
     const hideTooltip = () => setVisible(false);
 
-    // Find the node element
-    const nodeElement = document.querySelector(`[data-id="${nodeId}"]`);
+    // Find the node element via data-id (React Flow convention)
+    const nodeElement = document.querySelector(`[data-id="${CSS.escape(nodeId)}"]`);
     if (nodeElement) {
       nodeElement.addEventListener("mouseenter", showTooltip);
       nodeElement.addEventListener("mouseleave", hideTooltip);

@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { validateGraph } from "@understand-anything/core/schema";
+import type { GraphIssue } from "@understand-anything/core/schema";
 import { useDashboardStore } from "./store";
 import GraphView from "./components/GraphView";
 import CodeViewer from "./components/CodeViewer";
@@ -14,10 +15,58 @@ import LearnPanel from "./components/LearnPanel";
 import PersonaSelector from "./components/PersonaSelector";
 import ProjectOverview from "./components/ProjectOverview";
 import KeyboardShortcutsHelp from "./components/KeyboardShortcutsHelp";
+import WarningBanner from "./components/WarningBanner";
+import TokenGate from "./components/TokenGate";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import type { KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
+import { ThemeProvider } from "./themes/index.ts";
+import { ThemePicker } from "./components/ThemePicker.tsx";
+import type { ThemeConfig } from "./themes/index.ts";
+
+const SESSION_TOKEN_KEY = "understand-anything-token";
+
+/**
+ * Resolve the access token from the URL query string or sessionStorage.
+ * If found in the URL, persist to sessionStorage and strip the param from the address bar.
+ */
+function resolveInitialToken(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const urlToken = params.get("token");
+  if (urlToken) {
+    sessionStorage.setItem(SESSION_TOKEN_KEY, urlToken);
+    // Clean the URL
+    params.delete("token");
+    const cleanSearch = params.toString();
+    const newUrl =
+      window.location.pathname + (cleanSearch ? `?${cleanSearch}` : "") + window.location.hash;
+    window.history.replaceState(null, "", newUrl);
+    return urlToken;
+  }
+  return sessionStorage.getItem(SESSION_TOKEN_KEY);
+}
+
+/** Build a URL with the token query param appended. */
+function tokenUrl(path: string, token: string | null): string {
+  return token ? `${path}?token=${encodeURIComponent(token)}` : path;
+}
 
 function App() {
+  const [accessToken, setAccessToken] = useState<string | null>(resolveInitialToken);
+
+  const handleTokenValid = useCallback((token: string) => {
+    sessionStorage.setItem(SESSION_TOKEN_KEY, token);
+    setAccessToken(token);
+  }, []);
+
+  // Show the token gate when no token is available
+  if (accessToken === null) {
+    return <TokenGate onTokenValid={handleTokenValid} />;
+  }
+
+  return <Dashboard accessToken={accessToken} />;
+}
+
+function Dashboard({ accessToken }: { accessToken: string }) {
   const graph = useDashboardStore((s) => s.graph);
   const setGraph = useDashboardStore((s) => s.setGraph);
   const selectedNodeId = useDashboardStore((s) => s.selectedNodeId);
@@ -28,8 +77,21 @@ function App() {
   const setDiffOverlay = useDashboardStore((s) => s.setDiffOverlay);
   const pathFinderOpen = useDashboardStore((s) => s.pathFinderOpen);
   const togglePathFinder = useDashboardStore((s) => s.togglePathFinder);
+  const nodeTypeFilters = useDashboardStore((s) => s.nodeTypeFilters);
+  const toggleNodeTypeFilter = useDashboardStore((s) => s.toggleNodeTypeFilter);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [graphIssues, setGraphIssues] = useState<GraphIssue[]>([]);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [metaTheme, setMetaTheme] = useState<ThemeConfig | null>(null);
+
+  useEffect(() => {
+    fetch(tokenUrl("/meta.json", accessToken))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((meta) => {
+        if (meta?.theme) setMetaTheme(meta.theme);
+      })
+      .catch(() => {});
+  }, []);
 
   // Define keyboard shortcuts
   const shortcuts = useMemo<KeyboardShortcut[]>(
@@ -45,7 +107,7 @@ function App() {
       // Navigation
       {
         key: "Escape",
-        description: "Close panels and modals",
+        description: "Close panels and modals / go back to overview",
         action: () => {
           // Read from store at invocation time to avoid stale closures
           const state = useDashboardStore.getState();
@@ -59,6 +121,8 @@ function App() {
             state.closeCodeViewer();
           } else if (state.selectedNodeId) {
             state.selectNode(null);
+          } else if (state.navigationLevel === "layer-detail") {
+            state.navigateToOverview();
           } else if (state.tourActive) {
             state.stopTour();
           } else {
@@ -103,15 +167,6 @@ function App() {
       },
       // View toggles
       {
-        key: "l",
-        description: "Toggle layer visualization",
-        action: () => {
-          const state = useDashboardStore.getState();
-          state.toggleLayers();
-        },
-        category: "View",
-      },
-      {
         key: "d",
         description: "Toggle diff mode",
         action: () => {
@@ -155,16 +210,26 @@ function App() {
   useKeyboardShortcuts(shortcuts);
 
   useEffect(() => {
-    fetch("/knowledge-graph.json")
+    fetch(tokenUrl("/knowledge-graph.json", accessToken))
       .then((res) => res.json())
       .then((data: unknown) => {
         const result = validateGraph(data);
         if (result.success && result.data) {
           setGraph(result.data);
+          setGraphIssues(result.issues);
+          for (const issue of result.issues) {
+            if (issue.level === "auto-corrected") {
+              console.warn(`[graph] auto-corrected: ${issue.message}`);
+            } else if (issue.level === "dropped") {
+              console.error(`[graph] dropped: ${issue.message}`);
+            }
+          }
+        } else if (result.fatal) {
+          console.error("Knowledge graph validation failed:", result.fatal);
+          setLoadError(`Invalid knowledge graph: ${result.fatal}`);
         } else {
-          const errorMsg = result.errors?.join("; ") ?? "Unknown validation error";
-          console.error("Knowledge graph validation failed:", errorMsg);
-          setLoadError(`Invalid knowledge graph: ${errorMsg}`);
+          console.error("Knowledge graph validation failed: unknown error");
+          setLoadError("Invalid knowledge graph: unknown validation error");
         }
       })
       .catch((err) => {
@@ -174,7 +239,7 @@ function App() {
   }, [setGraph]);
 
   useEffect(() => {
-    fetch("/diff-overlay.json")
+    fetch(tokenUrl("/diff-overlay.json", accessToken))
       .then((res) => {
         if (!res.ok) return null;
         return res.json();
@@ -200,16 +265,19 @@ function App() {
   }, [setDiffOverlay]);
 
   // Determine sidebar content
-  // Learn persona always shows LearnPanel; tour active overrides everything
-  const sidebarContent = tourActive || persona === "junior" ? (
-    <LearnPanel />
-  ) : selectedNodeId ? (
-    <NodeInfo />
-  ) : (
-    <ProjectOverview />
+  // NodeInfo always takes priority when a node is selected.
+  // Learn mode adds LearnPanel below it; otherwise ProjectOverview shows when idle.
+  const isLearnMode = tourActive || persona === "junior";
+  const sidebarContent = (
+    <>
+      {selectedNodeId && <NodeInfo />}
+      {isLearnMode && <LearnPanel />}
+      {!selectedNodeId && !isLearnMode && <ProjectOverview />}
+    </>
   );
 
   return (
+    <ThemeProvider metaTheme={metaTheme}>
     <div className="h-screen w-screen flex flex-col bg-root text-text-primary noise-overlay">
       {/* Header */}
       <header className="flex items-center justify-between px-5 py-3 bg-surface border-b border-border-subtle shrink-0">
@@ -222,6 +290,35 @@ function App() {
         </div>
         <div className="flex items-center gap-4">
           <DiffToggle />
+          <div className="flex items-center gap-1">
+            {([
+              { key: "code", label: "Code", color: "var(--color-node-file)" },
+              { key: "config", label: "Config", color: "var(--color-node-config)" },
+              { key: "docs", label: "Docs", color: "var(--color-node-document)" },
+              { key: "infra", label: "Infra", color: "var(--color-node-service)" },
+              { key: "data", label: "Data", color: "var(--color-node-table)" },
+            ] as const).map((cat) => (
+              <button
+                key={cat.key}
+                onClick={() => toggleNodeTypeFilter(cat.key)}
+                className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded border transition-colors flex items-center gap-1.5 ${
+                  nodeTypeFilters[cat.key] !== false
+                    ? "border-border-medium bg-elevated text-text-secondary hover:text-text-primary"
+                    : "border-transparent bg-transparent text-text-muted/40 line-through hover:text-text-muted"
+                }`}
+                title={`${nodeTypeFilters[cat.key] !== false ? "Hide" : "Show"} ${cat.label} nodes`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: cat.color,
+                    opacity: nodeTypeFilters[cat.key] !== false ? 1 : 0.3,
+                  }}
+                />
+                {cat.label}
+              </button>
+            ))}
+          </div>
           <LayerLegend />
           <FilterPanel />
           <ExportMenu />
@@ -245,9 +342,10 @@ function App() {
             </svg>
             Path
           </button>
+          <ThemePicker />
           <button
             onClick={() => setShowKeyboardHelp(true)}
-            className="text-text-muted hover:text-gold transition-colors"
+            className="text-text-muted hover:text-accent transition-colors"
             title="Keyboard shortcuts (Shift + ?)"
           >
             <svg
@@ -270,6 +368,11 @@ function App() {
       {/* Search */}
       <SearchBar />
 
+      {/* Validation warning banner */}
+      {graphIssues.length > 0 && !loadError && (
+        <WarningBanner issues={graphIssues} />
+      )}
+
       {/* Error banner */}
       {loadError && (
         <div className="px-5 py-3 bg-red-900/30 border-b border-red-700 text-red-200 text-sm">
@@ -288,13 +391,13 @@ function App() {
         </div>
 
         {/* Right sidebar */}
-        <aside className="w-[360px] shrink-0 bg-surface border-l border-border-subtle overflow-hidden">
+        <aside className="w-[360px] shrink-0 bg-surface border-l border-border-subtle overflow-auto">
           {sidebarContent}
         </aside>
 
         {/* Code viewer overlay */}
         {codeViewerOpen && (
-          <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-surface border-t border-border-subtle animate-slide-up z-20">
+          <div className="absolute bottom-0 left-0 right-0 h-[25vh] bg-surface border-t border-border-subtle animate-slide-up z-20">
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-end px-3 py-1 shrink-0">
                 <button
@@ -326,6 +429,7 @@ function App() {
         onClose={togglePathFinder}
       />
     </div>
+    </ThemeProvider>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useDashboardStore } from "../store";
+import { useDashboardStore, ALL_NODE_TYPES, ALL_COMPLEXITIES, ALL_EDGE_CATEGORIES } from "../store";
 import type { NodeType, Complexity, EdgeCategory } from "../store";
 
 export default function FilterPanel() {
@@ -13,9 +13,9 @@ export default function FilterPanel() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const allNodeTypes: NodeType[] = ["file", "function", "class", "module", "concept"];
-  const allComplexities: Complexity[] = ["simple", "moderate", "complex"];
-  const allEdgeCategories: EdgeCategory[] = ["structural", "behavioral", "data-flow", "dependencies", "semantic"];
+  const allNodeTypes = ALL_NODE_TYPES;
+  const allComplexities = ALL_COMPLEXITIES;
+  const allEdgeCategories = ALL_EDGE_CATEGORIES;
   const layers = graph?.layers ?? [];
 
   // Close dropdown on outside click
@@ -193,7 +193,7 @@ export default function FilterPanel() {
                       className="w-3.5 h-3.5 rounded border-border-subtle bg-elevated checked:bg-gold checked:border-gold focus:ring-0 focus:ring-offset-0 cursor-pointer"
                     />
                     <span className="text-sm text-text-primary capitalize">
-                      {category.replace("-", " ")}
+                      {category.replace(/-/g, " ")}
                     </span>
                   </label>
                 ))}

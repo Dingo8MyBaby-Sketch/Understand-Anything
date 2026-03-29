@@ -3,6 +3,10 @@ import { useDashboardStore } from "../store";
 import type { KnowledgeGraph } from "@understand-anything/core/types";
 import { filterNodes, filterEdges } from "../utils/filters";
 
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -97,23 +101,32 @@ export default function ExportMenu() {
 
       // Create an image and draw to canvas
       const img = new Image();
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        console.error("PNG export failed: Image failed to load from SVG blob");
+        alert("Failed to export PNG: could not render graph as image. Try SVG export instead.");
+      };
       img.onload = () => {
         const canvas = document.createElement("canvas");
         canvas.width = width * 2;
         canvas.height = height * 2;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
+          URL.revokeObjectURL(url);
           alert("Failed to create canvas context");
           return;
         }
         ctx.drawImage(img, 0, 0);
         URL.revokeObjectURL(url);
 
+        const filename = `${graph?.project.name ?? "knowledge-graph"}-export.png`;
         canvas.toBlob((blob) => {
           if (blob) {
-            const filename = `${graph?.project.name ?? "knowledge-graph"}-export.png`;
             downloadBlob(blob, filename);
             toggleExportMenu();
+          } else {
+            console.error("PNG export failed: canvas.toBlob returned null (canvas may be tainted)");
+            alert("Failed to export PNG: image encoding failed. Try SVG export instead.");
           }
         }, "image/png");
       };
@@ -186,7 +199,7 @@ export default function ExportMenu() {
         const h = node.height ?? 80;
 
         svgContent += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#1a1a1a" stroke="rgba(212,165,116,0.2)" stroke-width="1"/>`;
-        svgContent += `<text x="${x + w / 2}" y="${y + h / 2}" fill="#d4a574" text-anchor="middle" dominant-baseline="middle" font-size="12">${node.data.label ?? node.id}</text>`;
+        svgContent += `<text x="${x + w / 2}" y="${y + h / 2}" fill="#d4a574" text-anchor="middle" dominant-baseline="middle" font-size="12">${escapeXml(String(node.data.label ?? node.id))}</text>`;
       });
 
       svgContent += `</svg>`;
