@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <a href="README.zh-CN.md">中文</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.tr-TR.md">Türkçe</a>
+  <a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.zh-TW.md">繁體中文</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.tr-TR.md">Türkçe</a>
 </p>
 
 <p align="center">
@@ -138,6 +138,15 @@ Fetch and follow instructions from https://raw.githubusercontent.com/Lum1104/Und
 
 Cursorはこのリポジトリをクローンすると `.cursor-plugin/plugin.json` 経由でプラグインを自動検出します。手動インストールは不要です — クローンしてCursorで開くだけです。
 
+### VS Code + GitHub Copilot
+
+GitHub Copilot拡張機能（v1.108+）をインストールしたVS Codeは、`.copilot-plugin/plugin.json` 経由でプラグインを自動検出します。クローンしてVS Codeで開くだけで、手動インストールは不要です。
+
+全プロジェクトで使用するパーソナルスキルとして設定する場合は、GitHub Copilotに以下を伝えてください：
+```text
+Fetch and follow instructions from https://raw.githubusercontent.com/Lum1104/Understand-Anything/refs/heads/main/.vscode/INSTALL.md
+```
+
 ### Antigravity
 
 Antigravityに以下を伝えてください：
@@ -168,6 +177,7 @@ Fetch and follow instructions from https://raw.githubusercontent.com/Lum1104/Und
 | OpenCode | ✅ サポート | AI駆動インストール |
 | OpenClaw | ✅ サポート | AI駆動インストール |
 | Cursor | ✅ サポート | 自動検出 |
+| VS Code + GitHub Copilot | ✅ サポート | 自動検出 |
 | Antigravity | ✅ サポート | AI駆動インストール |
 | Gemini CLI | ✅ サポート | AI駆動インストール |
 | Pi Agent | ✅ サポート | AI駆動インストール |
