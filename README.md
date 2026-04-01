@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <a href="README.zh-CN.md">中文</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.tr-TR.md">Türkçe</a>
+  <a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.zh-TW.md">繁體中文</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.tr-TR.md">Türkçe</a>
 </p>
 
 <p align="center">
@@ -138,6 +138,15 @@ Fetch and follow instructions from https://raw.githubusercontent.com/Lum1104/Und
 
 Cursor auto-discovers the plugin via `.cursor-plugin/plugin.json` when this repo is cloned. No manual installation needed — just clone and open in Cursor.
 
+### VS Code + GitHub Copilot
+
+VS Code with GitHub Copilot (v1.108+) auto-discovers the plugin via `.copilot-plugin/plugin.json` when this repo is cloned. No manual installation needed — just clone and open in VS Code.
+
+For personal skills (available across all projects), tell GitHub Copilot:
+```text
+Fetch and follow instructions from https://raw.githubusercontent.com/Lum1104/Understand-Anything/refs/heads/main/.vscode/INSTALL.md
+```
+
 ### Antigravity
 
 Tell Antigravity:
@@ -168,6 +177,7 @@ Fetch and follow instructions from https://raw.githubusercontent.com/Lum1104/Und
 | OpenCode | ✅ Supported | AI-driven install |
 | OpenClaw | ✅ Supported | AI-driven install |
 | Cursor | ✅ Supported | Auto-discovery |
+| VS Code + GitHub Copilot | ✅ Supported | Auto-discovery |
 | Antigravity | ✅ Supported | AI-driven install |
 | Gemini CLI | ✅ Supported | AI-driven install |
 | Pi Agent | ✅ Supported | AI-driven install |
@@ -237,9 +247,9 @@ The `/understand` command orchestrates 5 specialized agents:
 | `file-analyzer` | Extract functions, classes, imports; produce graph nodes and edges |
 | `architecture-analyzer` | Identify architectural layers |
 | `tour-builder` | Generate guided learning tours |
-| `graph-reviewer` | Validate graph completeness and referential integrity |
+| `graph-reviewer` | Validate graph completeness and referential integrity (runs inline by default; use `--review` for full LLM review) |
 
-File analyzers run in parallel (up to 3 concurrent). Supports incremental updates — only re-analyzes files that changed since the last run.
+File analyzers run in parallel (up to 5 concurrent, 20-30 files per batch). Supports incremental updates — only re-analyzes files that changed since the last run.
 
 ### Project Structure
 

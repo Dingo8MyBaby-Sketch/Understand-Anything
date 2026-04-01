@@ -1,26 +1,44 @@
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import type { NodeProps, Node } from "@xyflow/react";
+import type { NodeType } from "@understand-anything/core/types";
 
-const typeColors: Record<string, string> = {
+// Color maps keyed by NodeType — must be kept in sync with core NodeType union.
+const typeColors: Record<NodeType, string> = {
   file: "var(--color-node-file)",
   function: "var(--color-node-function)",
   class: "var(--color-node-class)",
   module: "var(--color-node-module)",
   concept: "var(--color-node-concept)",
+  config: "var(--color-node-config)",
+  document: "var(--color-node-document)",
+  service: "var(--color-node-service)",
+  table: "var(--color-node-table)",
+  endpoint: "var(--color-node-endpoint)",
+  pipeline: "var(--color-node-pipeline)",
+  schema: "var(--color-node-schema)",
+  resource: "var(--color-node-resource)",
 };
 
-const typeTextColors: Record<string, string> = {
+const typeTextColors: Record<NodeType, string> = {
   file: "text-node-file",
   function: "text-node-function",
   class: "text-node-class",
   module: "text-node-module",
   concept: "text-node-concept",
+  config: "text-node-config",
+  document: "text-node-document",
+  service: "text-node-service",
+  table: "text-node-table",
+  endpoint: "text-node-endpoint",
+  pipeline: "text-node-pipeline",
+  schema: "text-node-schema",
+  resource: "text-node-resource",
 };
 
 const complexityColors: Record<string, string> = {
   simple: "text-node-function",
-  moderate: "text-gold-dim",
+  moderate: "text-accent-dim",
   complex: "text-[#c97070]",
 };
 
@@ -36,7 +54,12 @@ export interface CustomNodeData extends Record<string, unknown> {
   isDiffChanged: boolean;
   isDiffAffected: boolean;
   isDiffFaded: boolean;
+  isNeighbor: boolean;
+  isSelectionFaded: boolean;
   onNodeClick?: (nodeId: string) => void;
+  incomingCount?: number;
+  outgoingCount?: number;
+  tags?: string[];
 }
 
 export type CustomFlowNode = Node<CustomNodeData, "custom">;
@@ -45,23 +68,28 @@ function CustomNodeComponent({
   id,
   data,
 }: NodeProps<CustomFlowNode>) {
-  const barColor = typeColors[data.nodeType] ?? typeColors.file;
-  const textColor = typeTextColors[data.nodeType] ?? typeTextColors.file;
+  const knownType = data.nodeType as NodeType;
+  const barColor = typeColors[knownType] ?? typeColors.file;
+  const textColor = typeTextColors[knownType] ?? typeTextColors.file;
   const complexityColor = complexityColors[data.complexity] ?? complexityColors.simple;
+
+  if (import.meta.env.DEV && !(knownType in typeColors)) {
+    console.warn(`[CustomNode] Unknown node type "${data.nodeType}" — using "file" colors`);
+  }
 
   let extraClass = "";
   if (data.isSelected) {
-    extraClass = "ring-2 ring-gold node-glow";
+    extraClass = "ring-2 ring-accent node-glow";
   } else if (data.isTourHighlighted) {
-    extraClass = "ring-2 ring-gold-dim animate-gold-pulse";
+    extraClass = "ring-2 ring-accent-dim animate-accent-pulse";
   } else if (data.isHighlighted) {
     const score = data.searchScore ?? 1;
     if (score <= 0.1) {
-      extraClass = "ring-2 ring-gold-bright";
+      extraClass = "ring-2 ring-accent-bright";
     } else if (score <= 0.3) {
-      extraClass = "ring-2 ring-gold";
+      extraClass = "ring-2 ring-accent";
     } else {
-      extraClass = "ring-1 ring-gold-dim/60";
+      extraClass = "ring-1 ring-accent-dim/60";
     }
   }
 
@@ -72,6 +100,13 @@ function CustomNodeComponent({
     extraClass += " ring-1 ring-[var(--color-diff-affected)] diff-affected-glow";
   } else if (data.isDiffFaded) {
     extraClass += " diff-faded";
+  }
+
+  // Selection-based dimming (when another node is selected, fade unrelated nodes)
+  if (data.isSelectionFaded) {
+    extraClass += " opacity-20 pointer-events-auto";
+  } else if (data.isNeighbor) {
+    extraClass += " ring-1 ring-gold-dim/50";
   }
 
   const name = data.label ?? "unnamed";
